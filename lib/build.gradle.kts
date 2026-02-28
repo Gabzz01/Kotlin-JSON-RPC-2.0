@@ -24,7 +24,7 @@ kotlin {
             testTask {
                 useKarma {
                     //useChromeHeadless()       // standard for local dev
-                     useChromeHeadlessNoSandbox() // for Docker/CI
+                    useChromeHeadlessNoSandbox() // for Docker/CI
                     // useFirefoxHeadless()
                 }
             }
@@ -61,6 +61,9 @@ kotlin {
 }
 
 publishing {
+    publications.withType<MavenPublication> {
+        artifactId = artifactId.replace(project.name, "kt-json-rpc-2")
+    }
     repositories {
         maven {
             name = "GitHubPackages"
@@ -71,6 +74,27 @@ publishing {
             }
         }
     }
+}
+
+val prepareDokkaReadme by tasks.registering(Copy::class) {
+    from(rootProject.file("README.md"))
+    into(layout.buildDirectory.dir("dokka-includes"))
+
+    filter { line ->
+        if (line.startsWith("# ")) "# Module Kotlin JSON-RPC 2.0" else line
+    }
+}
+
+dokka {
+    moduleName = "Kotlin JSON-RPC 2.0"
+    dokkaSourceSets.configureEach {
+        includes.from(prepareDokkaReadme.map {
+            it.destinationDir.resolve("README.md")
+        })
+    }
+}
+tasks.dokkaGenerate {
+    dependsOn(prepareDokkaReadme)
 }
 /*
 mavenPublishing {

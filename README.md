@@ -12,8 +12,8 @@ A pure Kotlin, transport-agnostic implementation of the [JSON RPC 2.0 specificat
 Unlike traditional request/response APIs, it is **bidirectional** — once a connection is established, either peer can initiate
 requests, responses, or fire-and-forget notifications.
 
-This library was built out of a concrete use case: enabling **bidirectional communication between a master server
-and IoT edge controllers** over a persistent connection, where only the master server is publicly exposed.
+This library was built out of a concrete use case: enabling bidirectional communication between a master server
+and IoT edge controllers, where only the master server is publicly exposed.
 It has since been battle tested in production against real hardware, unreliable connections,
 and the constraints of industrial deployments.
 
