@@ -1,7 +1,10 @@
 # Kotlin JSON-RPC 2.0
 
 [![Kotlin](https://img.shields.io/badge/kotlin-2.3.10-blue.svg?logo=kotlin)](http://kotlinlang.org)
-![GitHub License](https://img.shields.io/github/license/Gabzz01/Kotlin-JSON-RPC-2.0)
+[![Kotlin Multiplatform](https://img.shields.io/badge/Platforms-%20JVM%20%7C%20Wasm%2FJS%20%7C%20Native%20-blueviolet?logo=kotlin)](https://kotlinlang.org/docs/multiplatform.html)
+[![Build](https://github.com/Gabzz01/Kotlin-JSON-RPC-2.0/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/Gabzz01/Kotlin-JSON-RPC-2.0/actions/workflows/build.yml)
+[![KDoc](https://img.shields.io/badge/API_reference-KDoc-blue)](https://gabzz01.github.io/Kotlin-JSON-RPC-2.0/)
+[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 A pure Kotlin, transport-agnostic implementation of the [JSON RPC 2.0 specification](https://www.jsonrpc.org/specification) based on 
 `kotlinx.serialization.json` and `kotlinx.coroutines`.
@@ -42,7 +45,7 @@ repositories {
 }
 
 dependencies {
-    implementation("io.github.gabzz01:lib:ef968e2")
+    implementation("io.github.gabzz01:kt-json-rpc-2:a01fa9a")
 }
 ```
 
