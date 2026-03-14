@@ -69,7 +69,8 @@ internal class JsonRpcImpl(
                 try {
                     val messageAsJsonElement = try {
                         json.decodeFromString(JsonElement.serializer(), message)
-                    } catch (_: Throwable) {
+                    } catch (e: Throwable) {
+                        if (e is CancellationException) throw e
                         val jsonRpcException = JsonRpcException.ParseError("Failed to parse JSON Payload : $message")
                         _localErrors.emit(jsonRpcException)
                         val jsonRpcExceptionMessage = jsonRpcException.toJsonRpcMessage(null)
@@ -79,7 +80,8 @@ internal class JsonRpcImpl(
                     }
                     val jsonRpcMessage = try {
                         json.decodeFromJsonElement(JsonRpcMessage.serializer(), messageAsJsonElement)
-                    } catch (_: Throwable) {
+                    } catch (e: Throwable) {
+                        if (e is CancellationException) throw e
                         // Best-effort ID extraction so the error response can be correlated by the remote peer
                         val extractedId = (messageAsJsonElement as? JsonObject)
                             ?.get("id")?.jsonPrimitive?.contentOrNull
@@ -108,7 +110,7 @@ internal class JsonRpcImpl(
                     }
                 } catch (e: CancellationException) {
                     throw e
-                } catch (e: Throwable) {
+                } catch (e: Exception) {
                     logger.error(e) { "Unexpected error processing message: $message" }
                     _localErrors.emit(JsonRpcException.InternalError("Unexpected error processing message: ${e.message}"))
                 }
@@ -158,7 +160,7 @@ internal class JsonRpcImpl(
                 Result.success(completableFuture.await())
             }
         } catch (_: TimeoutCancellationException) {
-            throw JsonRpcException.InternalError("Request timed out for $request")
+            return Result.failure(JsonRpcException.InternalError("Request timed out for $request"))
         } catch (err: JsonRpcException) {
             return Result.failure(err)
         } finally {

@@ -130,15 +130,14 @@ interface JsonRpc {
      * so callers never need to coordinate access. Each call suspends only for the duration of its own
      * transport write; the [timeout] covers the full round-trip from send to response.
      *
-     * Returns a [Result] wrapping the response payload on success, or a [JsonRpcException] on failure
-     * (remote error response, timeout, or connection closed mid-flight). The exception is thrown
-     * directly for timeouts; all other failures are returned as [Result.failure].
+     * Returns a [Result] wrapping the response payload on success, or a [Result.failure] wrapping a
+     * [JsonRpcException] on failure (remote error response, timeout, or connection closed mid-flight).
      *
      * @param method The name of the remote method to invoke.
      * @param params The invocation parameters. Per the JSON-RPC 2.0 specification this MUST be a
      *   [kotlinx.serialization.json.JsonObject] or a [kotlinx.serialization.json.JsonArray].
-     * @param timeout Maximum time to wait for a response before throwing [JsonRpcException.InternalError].
-     *   Defaults to 30 seconds.
+     * @param timeout Maximum time to wait for a response before returning [Result.failure] with a
+     *   [JsonRpcException.InternalError]. Defaults to 30 seconds.
      */
     suspend fun request(method: String, params: JsonElement, timeout: Duration = 30.seconds): Result<JsonElement>
 
