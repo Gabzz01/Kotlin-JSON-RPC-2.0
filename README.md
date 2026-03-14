@@ -30,7 +30,19 @@ auto-reconnect, retries, circuit breakers, telemetry, and whatever else your use
 ## Getting Started
 
 ### Installation
-Add the Github Packages repository and the library dependency:
+
+GitHub Packages requires authentication even for public packages. You need a GitHub
+[Personal Access Token (classic)](https://github.com/settings/tokens) with the `read:packages` scope.
+
+Store your credentials in `~/.gradle/gradle.properties` (never commit this file):
+
+```properties
+# ~/.gradle/gradle.properties
+gpr.user=YOUR_GITHUB_USERNAME
+gpr.key=YOUR_GITHUB_TOKEN
+```
+
+Then add the repository and dependency to your project:
 
 ```kotlin
 // build.gradle.kts
@@ -38,8 +50,8 @@ repositories {
     maven {
         url = uri("https://maven.pkg.github.com/Gabzz01/Kotlin-JSON-RPC-2.0")
         credentials {
-            username = project.findProperty("gpr.user") ?: System.getenv("USERNAME")
-            password = project.findProperty("gpr.key") ?: System.getenv("TOKEN")
+            username = project.findProperty("gpr.user") as String? ?: System.getenv("USERNAME")
+            password = project.findProperty("gpr.key") as String? ?: System.getenv("TOKEN")
         }
     }
 }
@@ -48,6 +60,9 @@ dependencies {
     implementation("io.github.gabzz01:kt-json-rpc-2:a01fa9a")
 }
 ```
+
+> **CI environments:** set the `USERNAME` and `TOKEN` environment variables in your pipeline
+> secrets instead of using `gradle.properties`.
 
 ### Transport Implementation
 
