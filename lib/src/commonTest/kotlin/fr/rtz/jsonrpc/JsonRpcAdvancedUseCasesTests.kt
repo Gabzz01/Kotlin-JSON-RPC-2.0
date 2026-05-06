@@ -3,6 +3,7 @@ package fr.rtz.jsonrpc
 import fr.rtz.jsonrpc.utils.InMemoryJsonRpcTransportSession
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.joinAll
@@ -10,9 +11,12 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.int
+import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -452,6 +456,39 @@ class JsonRpcAdvancedUseCasesTests {
             peerA.request("after-flood", JsonPrimitive("check"), 2.seconds)
         }
         assertEquals(JsonPrimitive("ok"), result.getOrThrow())
+    }
+
+    /**
+     * Validates that responses carrying vendor-specific extra fields (outside the JSON-RPC 2.0
+     * spec) are accepted instead of being rejected as unknown keys. Real devices do this — e.g.
+     * Shelly Gen2+ replies include a `src` field identifying the device that responded:
+     *   `{"id":"<uuid>","src":"shellypmminig3-...","result":{...}}`
+     * Regression for the strict-default-Json bug in JsonRpcMessageSerializer that turned every
+     * such reply into an InvalidRequest and broke any HTTP RPC call against those devices.
+     */
+    @Test
+    fun `Response with vendor extra fields resolves the pending request`() = runTest {
+        val inbound = Channel<String>()
+        val outbound = Channel<String>(capacity = Channel.UNLIMITED)
+        val peer = JsonRpc.of(InMemoryJsonRpcTransportSession(inbound, outbound))
+
+        // Fire the request on a real dispatcher so the in-memory transport can drain
+        val resultDeferred = backgroundScope.async(Dispatchers.Default) {
+            peer.request("Switch.GetStatus", buildJsonObject { put("id", 0) }, 5.seconds)
+        }
+
+        // Pull the outbound request to extract the id we must echo back
+        val sentJson = withContext(Dispatchers.Default) { outbound.receive() }
+        val requestId = (Json.parseToJsonElement(sentJson) as JsonObject)["id"]!!.jsonPrimitive.content
+
+        val vendorReply = """
+            {"id":"$requestId","src":"shellypmminig3-5432046f698c","dst":"io-hub","result":{"voltage":234.7}}
+        """.trimIndent()
+        inbound.send(vendorReply)
+
+        val result = withContext(Dispatchers.Default) { resultDeferred.await() }
+        val payload = result.getOrThrow() as JsonObject
+        assertEquals(JsonPrimitive(234.7), payload["voltage"])
     }
 
     /**

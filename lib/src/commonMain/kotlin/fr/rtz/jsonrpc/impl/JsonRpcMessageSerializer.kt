@@ -8,8 +8,9 @@ import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.descriptors.buildSerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
-import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonDecoder
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonObject
 
 /**
  * [JsonRpcMessage] custom serializer that handles polymorphic serialization. As Kotlin native polymorphic serialization
@@ -43,20 +44,28 @@ internal object JsonRpcMessageSerializer : KSerializer<JsonRpcMessage> {
     }
 
     override fun deserialize(decoder: Decoder): JsonRpcMessage {
-        val jsonObject = decoder.decodeSerializableValue(JsonObject.Companion.serializer())
+        // Inherit the caller's Json configuration (notably `ignoreUnknownKeys`) instead of
+        // re-decoding through the strict default Json companion. JSON-RPC peers in the wild
+        // routinely add vendor metadata fields — e.g. Shelly Gen2+ replies carry `src`/`dst`
+        // identifying the device — and the spec explicitly allows implementations to ignore
+        // additional members. Falling back to a strict decode would reject those messages.
+        val jsonDecoder = decoder as? JsonDecoder
+            ?: error("JsonRpcMessageSerializer can only be used with a JsonDecoder")
+        val jsonObject = jsonDecoder.decodeJsonElement().jsonObject
+        val json = jsonDecoder.json
         // Presence of "method" is the reliable way to distinguish requests from responses,
         // since "params" is optional per the JSON-RPC 2.0 spec.
         return if (jsonObject.containsKey(METHOD)) {
             if (jsonObject.containsKey(ID)) {
-                Json.decodeFromJsonElement(JsonRpcMessage.Request.Standard.serializer(), jsonObject)
+                json.decodeFromJsonElement(JsonRpcMessage.Request.Standard.serializer(), jsonObject)
             } else {
-                Json.decodeFromJsonElement(JsonRpcMessage.Request.Notify.serializer(), jsonObject)
+                json.decodeFromJsonElement(JsonRpcMessage.Request.Notify.serializer(), jsonObject)
             }
         } else {
             if (jsonObject.containsKey(RESULT)) {
-                Json.decodeFromJsonElement(JsonRpcMessage.Response.Result.serializer(), jsonObject)
+                json.decodeFromJsonElement(JsonRpcMessage.Response.Result.serializer(), jsonObject)
             } else {
-                Json.decodeFromJsonElement(JsonRpcMessage.Response.Error.serializer(), jsonObject)
+                json.decodeFromJsonElement(JsonRpcMessage.Response.Error.serializer(), jsonObject)
             }
         }
     }
