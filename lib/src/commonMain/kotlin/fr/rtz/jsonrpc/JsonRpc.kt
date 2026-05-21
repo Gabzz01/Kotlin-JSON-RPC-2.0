@@ -158,6 +158,34 @@ interface JsonRpc {
     suspend fun notify(method: String, params: JsonElement)
 
     /**
+     * Completes every in-flight [request] exceptionally without closing the session.
+     *
+     * Intended for transports that auto-reconnect under a long-lived [JsonRpc] instance (typically
+     * WebSocket clients on a flaky link). When such a transport detects that the underlying
+     * connection has been lost, calls already in `pendingRequests` are stranded: any reply from
+     * the peer would arrive on a dead socket, and the caller would otherwise wait for its
+     * per-call [request] timeout to elapse. Invoking this function lets the transport fail them
+     * immediately so callers can fall back to their own retry / store-and-forward logic, while
+     * the [JsonRpc] instance, [callsInbox], and the internal scope remain usable for the next
+     * connection.
+     *
+     * Implementations MUST NOT close [callsInbox] or the transport. Implementations MUST be
+     * safe to call concurrently with [request] / [notify] — racing requests in the process of
+     * being registered are either failed or proceed normally; neither leaks.
+     *
+     * Default implementation is a no-op so older implementations of [JsonRpc] remain
+     * source- and binary-compatible.
+     *
+     * @param reason The exception to use when completing each pending request. Defaults to
+     *   [JsonRpcException.InternalError] with a "Transport disconnected" message.
+     */
+    suspend fun failPendingRequests(
+        reason: JsonRpcException = JsonRpcException.InternalError("Transport disconnected")
+    ) {
+        // No-op default for backwards source/binary compatibility.
+    }
+
+    /**
      * Closes the session and releases all associated resources.
      *
      * Performs the following steps in order:

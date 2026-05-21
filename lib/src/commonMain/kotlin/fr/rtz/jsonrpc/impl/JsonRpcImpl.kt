@@ -117,12 +117,27 @@ internal class JsonRpcImpl(
         }
     }
 
+    override suspend fun failPendingRequests(reason: JsonRpcException) {
+        val count = pendingRequestsMutex.withLock {
+            val entries = pendingRequests.entries.toList()
+            entries.forEach { (_, deferred) -> deferred.completeExceptionally(reason) }
+            pendingRequests.clear()
+            entries.size
+        }
+        if (count > 0) {
+            logger.info { "Failed $count in-flight JSON-RPC request(s) with $reason" }
+        }
+    }
+
     override suspend fun close() {
         logger.info { "Closing JSON-RPC connection..." }
 
         handlerScope.coroutineContext[Job]?.cancel()
         callsInbox.close()
 
+        // Reuse the same fail-pending walk so close() stays a strict superset of
+        // failPendingRequests(). The exception is intentionally per-id for compatibility
+        // with the previous message format.
         pendingRequestsMutex.withLock {
             pendingRequests.entries.forEach { (id, deferred) ->
                 deferred.completeExceptionally(
